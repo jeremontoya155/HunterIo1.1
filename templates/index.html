@@ -2,11 +2,39 @@
 <html>
 <head>
     <title>Instagram Bot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .alert {
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .alert-danger {
+            color: #a94442;
+            background-color: #f2dede;
+            border-color: #ebccd1;
+        }
+        .alert-success {
+            color: #3c763d;
+            background-color: #dff0d8;
+            border-color: #d6e9c6;
+        }
+    </style>
 </head>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-
 <body>
     <h1>Iniciar Sesión</h1>
+    
+    <!-- Mostrar mensajes flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
     
     <form method="POST">
         <input type="text" name="username" placeholder="Usuario" required><br>
@@ -15,4 +43,4 @@
         <button type="submit">Iniciar</button>
     </form>
 </body>
-</html> 
+</html>

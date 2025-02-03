@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from instagrapi import Client
 import schedule
 import time
@@ -8,7 +8,7 @@ import os
 import random
 
 app = Flask(__name__)
-app.secret_key = os.getenv("API_KEY")  # Necesaria para manejar sesiones
+app.secret_key = os.getenv("API_KEY")  # Necesaria para manejar sesiones y mensajes flash
 
 # Configuración del proxy SOCKS5
 PROXY = os.getenv("PROXY")
@@ -16,9 +16,9 @@ PROXY = os.getenv("PROXY")
 # Variables globales
 cliente = None
 seguidores = []
-MENSAJES_POR_HORA = 10
-TOTAL_MENSAJES = 40
-DURACION_HORAS = 6
+MENSAJES_POR_HORA = 25  # Ajustado para enviar 150 mensajes en 6 horas
+TOTAL_MENSAJES = 150    # Total de mensajes a enviar
+DURACION_HORAS = 6      # Duración en horas para enviar los mensajes
 
 # Archivos de mensajes y base de conocimiento
 MENSAJES_FILE = "mensajes.txt"
@@ -38,9 +38,13 @@ def index():
         global cliente
         cliente = iniciar_sesion(session["username"], session["password"])
 
-        if cliente:
+        if cliente == "challenge_required":
+            flash("Se requiere resolver un challenge de seguridad. Por favor, revisa tu correo o teléfono.")
+            return redirect(url_for("challenge"))
+        elif cliente:
             return redirect(url_for("inicio_exitoso"))
         else:
+            flash("Error al iniciar sesión. Verifica tus credenciales.")
             return redirect(url_for("verificacion_2fa"))
 
     return render_template("index.html")
@@ -56,9 +60,27 @@ def verificacion_2fa():
         if cliente:
             return redirect(url_for("inicio_exitoso"))
         else:
-            return "Error al verificar el código de 2FA. Intenta nuevamente."
+            flash("Error al verificar el código de 2FA. Intenta nuevamente.")
+            return redirect(url_for("verificacion_2fa"))
 
     return render_template("verificacion_2fa.html")
+
+# Ruta para manejar el challenge de Instagram
+@app.route("/challenge", methods=["GET", "POST"])
+def challenge():
+    if request.method == "POST":
+        codigo_challenge = request.form["codigo_challenge"]
+        global cliente
+
+        try:
+            # Resolver el challenge con el código proporcionado
+            cliente.challenge_resolve(codigo_challenge)
+            return redirect(url_for("inicio_exitoso"))
+        except Exception as e:
+            flash(f"Error al resolver el challenge: {e}")
+            return redirect(url_for("challenge"))
+
+    return render_template("challenge.html")
 
 # Ruta para inicio de sesión exitoso
 @app.route("/inicio_exitoso")
@@ -66,7 +88,8 @@ def inicio_exitoso():
     global cliente, seguidores
 
     if not cliente:
-        return "Error: No hay sesión activa en Instagram."
+        flash("Error: No hay sesión activa en Instagram.")
+        return redirect(url_for("index"))
 
     competencias = [cuenta.strip() for cuenta in session["competencias"].split(",")]
     
@@ -75,7 +98,8 @@ def inicio_exitoso():
         seguidores_temp += obtener_seguidores(cliente, competencia)
 
     if not seguidores_temp:
-        return "No se pudieron obtener seguidores. Verifica las cuentas de competencia o revisa tu conexión."
+        flash("No se pudieron obtener seguidores. Verifica las cuentas de competencia o revisa tu conexión.")
+        return redirect(url_for("index"))
 
     seguidores = seguidores_temp  # Asigna la lista solo si tiene datos
     print(f"Se encontraron {len(seguidores)} seguidores en total.")
@@ -99,6 +123,8 @@ def iniciar_sesion(username, password, codigo_2fa=None):
     except Exception as e:
         if "Two-factor authentication required" in str(e):
             return None  # Indicar que se requiere 2FA
+        elif "challenge_required" in str(e):
+            return "challenge_required"  # Indicar que se requiere un challenge
         else:
             print(f"Error al iniciar sesión: {e}")
             return None
@@ -163,6 +189,7 @@ def generar_mensaje_personalizado(nombre, descripcion):
     '{mensaje_aleatorio}'
 
     Basado en la base de conocimiento y el mensaje sugerido, genera un mensaje personalizado y natural para esta persona.
+    Evita repetir frases idénticas y asegúrate de que el mensaje sea único.
     """
 
     try:
@@ -172,7 +199,7 @@ def generar_mensaje_personalizado(nombre, descripcion):
                 {"role": "system", "content": "Eres un asistente que genera mensajes personalizados para redes sociales."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7,
+            temperature=0.9,  # Aumenta la temperatura para mayor variación
             max_tokens=100
         )
         return response["choices"][0]["message"]["content"].strip()
@@ -203,18 +230,48 @@ def enviar_mensajes():
             cliente.direct_send(mensaje, user_ids=[user_id])
             print(f"✅ Mensaje enviado a {nombre}: {mensaje}")
             mensajes_enviados += 1
+
+            # Añadir un retraso aleatorio entre 2 y 5 minutos
+            tiempo_espera = random.randint(120, 300)  # 2 a 5 minutos en segundos
+            print(f"⏳ Esperando {tiempo_espera // 60} minutos antes del próximo mensaje...")
+            time.sleep(tiempo_espera)
+
         except Exception as e:
             print(f"⚠️ Error al enviar mensaje a {nombre}: {e}")
+            if "rate limit" in str(e).lower():
+                print("⏳ Límite de tasa alcanzado. Esperando 1 hora antes de reintentar...")
+                time.sleep(3600)  # Esperar 1 hora antes de reintentar
+            continue
 
     print(f"📩 Se enviaron {mensajes_enviados} mensajes.")
+
+# Función para simular actividad adicional
+def simular_actividad(cliente):
+    try:
+        # Dar like a algunas publicaciones
+        publicaciones = cliente.user_medias(cliente.user_id, amount=5)
+        for media in publicaciones:
+            cliente.media_like(media.id)
+            print(f"👍 Like dado a la publicación {media.id}")
+
+        # Comentar una publicación
+        if publicaciones:
+            comentario = "¡Muy buen contenido! 😊"
+            cliente.media_comment(publicaciones[0].id, comentario)
+            print(f"💬 Comentario publicado: {comentario}")
+
+    except Exception as e:
+        print(f"⚠️ Error al simular actividad: {e}")
 
 # Función para programar tareas
 def programar_tareas():
     schedule.clear()
     enviar_mensajes()  # Ejecutar el primer envío inmediatamente
+    simular_actividad(cliente)  # Simular actividad adicional
 
     for hora in range(DURACION_HORAS):
         schedule.every(hora + 1).hours.do(enviar_mensajes)
+        schedule.every(hora + 1).hours.do(simular_actividad, cliente)
 
     while True:
         schedule.run_pending()
