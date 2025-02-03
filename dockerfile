@@ -18,5 +18,5 @@ ENV FLASK_APP=app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_RUN_PORT=5000
 
-# Comando para ejecutar la aplicación
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+# Definir ENTRYPOINT para compatibilidad con Nixpacks
+ENTRYPOINT ["flask", "run", "--host=0.0.0.0", "--port=5000"]
