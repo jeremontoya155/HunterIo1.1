@@ -6,7 +6,6 @@ import threading
 import openai
 import os
 import random
-from collections import deque
 
 app = Flask(__name__)
 app.secret_key = os.getenv("API_KEY")  # Necesaria para manejar sesiones
@@ -16,7 +15,7 @@ PROXY = os.getenv("PROXY")
 
 # Variables globales
 cliente = None
-seguidores_queue = deque()
+seguidores = []
 MENSAJES_POR_HORA = 10
 TOTAL_MENSAJES = 40
 DURACION_HORAS = 6
@@ -64,26 +63,22 @@ def verificacion_2fa():
 # Ruta para inicio de sesión exitoso
 @app.route("/inicio_exitoso")
 def inicio_exitoso():
-    global cliente, seguidores_queue
+    global cliente, seguidores
 
     if not cliente:
         return "Error: No hay sesión activa en Instagram."
 
     competencias = [cuenta.strip() for cuenta in session["competencias"].split(",")]
     
-    nuevos_seguidores = []
+    seguidores_temp = []
     for competencia in competencias:
-        nuevos_seguidores += obtener_seguidores(cliente, competencia)
+        seguidores_temp += obtener_seguidores(cliente, competencia)
 
-    if not nuevos_seguidores:
-        return "No se pudieron obtener seguidores."
+    if not seguidores_temp:
+        return "No se pudieron obtener seguidores. Verifica las cuentas de competencia o revisa tu conexión."
 
-    # Agregar nuevos seguidores a la cola sin repetir
-    for seguidor in nuevos_seguidores:
-        if seguidor not in seguidores_queue:
-            seguidores_queue.append(seguidor)
-
-    print(f"Se agregaron {len(nuevos_seguidores)} seguidores a la cola.")
+    seguidores = seguidores_temp  # Asigna la lista solo si tiene datos
+    print(f"Se encontraron {len(seguidores)} seguidores en total.")
 
     # Iniciar el programador de tareas en un hilo separado
     threading.Thread(target=programar_tareas, daemon=True).start()
@@ -113,13 +108,13 @@ def obtener_seguidores(cl, username):
     try:
         print(f"🔍 Obteniendo seguidores de: {username}")
         user_id = cl.user_id_from_username(username)
-        seguidores = cl.user_followers(user_id, amount=40)  # Carga 40 seguidores por cuenta
+        seguidores = cl.user_followers(user_id, amount=10)
         return list(seguidores.keys())
     except Exception as e:
         print(f"⚠️ Error al obtener seguidores de {username}: {e}")
         return []
 
-# Función para obtener la descripción del perfil
+# Función para obtener la descripción del perfil y nombre real
 def obtener_info_usuario(cl, user_id):
     try:
         user_info = cl.user_info(user_id)
@@ -187,19 +182,20 @@ def generar_mensaje_personalizado(nombre, descripcion):
 
 # Función para enviar mensajes
 def enviar_mensajes():
-    global cliente, seguidores_queue
+    global cliente, seguidores
 
-    if not cliente or not seguidores_queue:
-        print("⚠️ No hay seguidores pendientes.")
+    if not cliente or not seguidores:
+        print("⚠️ No hay seguidores para enviar mensajes.")
         return
 
     mensajes_enviados = 0
-    while seguidores_queue and mensajes_enviados < MENSAJES_POR_HORA:
-        user_id = seguidores_queue.popleft()
-        nombre, descripcion = obtener_info_usuario(cliente, user_id)
+    for user_id in seguidores:
+        if mensajes_enviados >= MENSAJES_POR_HORA:
+            break
 
+        nombre, descripcion = obtener_info_usuario(cliente, user_id)
         if not descripcion:
-            continue  # Si el usuario no tiene biografía, lo omite
+            continue  # Si el usuario no tiene biografía, lo salta
 
         mensaje = generar_mensaje_personalizado(nombre, descripcion)
 
@@ -212,7 +208,7 @@ def enviar_mensajes():
 
     print(f"📩 Se enviaron {mensajes_enviados} mensajes.")
 
-# Programador de tareas
+# Función para programar tareas
 def programar_tareas():
     schedule.clear()
     enviar_mensajes()  # Ejecutar el primer envío inmediatamente

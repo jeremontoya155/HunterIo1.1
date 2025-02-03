@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estado del Bot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="status-container">
+        <h1>Estado del Bot</h1>
+        <p>Progreso: <span id="progreso">0%</span></p>
+        <div class="progress-bar">
+            <div id="barra-progreso"></div>
+        </div>
+        <button id="toggleBot">Pausar</button>
+    </div>
+
+    <script>
+        function actualizarProgreso() {
+            fetch("/progreso")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("progreso").innerText = data.progreso + "%";
+                    document.getElementById("barra-progreso").style.width = data.progreso + "%";
+                    document.getElementById("toggleBot").innerText = data.bot_pausado ? "Reanudar" : "Pausar";
+                });
+        }
+
+        document.getElementById("toggleBot").addEventListener("click", function() {
+            fetch("/toggle_bot", { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("toggleBot").innerText = data.bot_pausado ? "Reanudar" : "Pausar";
+                });
+        });
+
+        setInterval(actualizarProgreso, 2000);
+    </script>
+</body>
+</html>
