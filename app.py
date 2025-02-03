@@ -9,7 +9,7 @@ import random
 from collections import deque
 
 app = Flask(__name__)
-app.secret_key = "una_clave_secreta_muy_segura"  # Necesaria para manejar sesiones
+app.secret_key = os.getenv("API_KEY")  # Necesaria para manejar sesiones
 
 # Configuración del proxy SOCKS5
 PROXY = os.getenv("PROXY")
