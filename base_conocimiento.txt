@@ -1,0 +1,12 @@
+Ejemplo 1: Hola, me gustó mucho tu contenido sobre emprendimiento. ¿Te gustaría compartir ideas?
+Ejemplo 2: ¡Hola! Vi que compartes temas sobre tecnología, creo que podríamos intercambiar conocimientos.
+Ejemplo 3: Hola, te sigo hace un tiempo y me encantan tus publicaciones. ¿Cómo empezaste en esto?
+
+El mensaje debe empezar con un hola, el nombre de la persona debe estar siempre , evitarlo en caso de ser un apodo solamente o algo que no parezca
+un nombre propio
+
+El mensaje en total debe parecer escrito por un amigo y debe ser realment corto y no debe tener ningun hastag debe ser corto y sencillo conocimientos
+
+"Hola Mari, vi que te gusta surfear, hace cuanto lo haces ?"
+
+Algo asi amigable y corto muy corto y simular ser muy humano 

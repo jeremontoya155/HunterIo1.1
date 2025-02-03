@@ -1,0 +1,47 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f1f7f4;
+    text-align: center;
+}
+
+.login-container {
+    background: url('../images/background.png') no-repeat center center;
+    background-size: cover;
+    width: 400px;
+    padding: 40px;
+    margin: 100px auto;
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
+
+.status-container {
+    margin: 50px auto;
+    padding: 20px;
+    width: 300px;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    background-color: #ddd;
+    height: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#barra-progreso {
+    width: 0%;
+    height: 100%;
+    background-color: #2a6f97;
+    transition: width 0.5s;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #2a6f97;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+}
